@@ -1,8 +1,36 @@
+#include <LiquidCrystal.h>
+#include "DHT.h"
+#include <SPI.h>
+#include <SD.h>
+
 //////////////////////////// PUBLIC VARIABLES ////////////////////////////
+// LCD Configuration
+LiquidCrystal lcd(9, 8, 5, 4, 3, 2);
+bool lcdToggle = true;
+bool displayValveInfo = false; // Toggle for displaying valve info or environmental conditions
+
+// DHT Sensor Configuration
+#define DHTPIN 6
+#define DHTTYPE DHT11
+DHT dht(DHTPIN, DHTTYPE);
+
+// Valve configuration
+const int valvePin = A1;            // Valve pin
+unsigned long valveCycleStartTime = 0; // Valve cycle start time
+const unsigned long valveOpenDuration = 60000; // Valve open duration (1 minutes)
+unsigned long valveCloseDuration = 60000; // Valve close duration (1 minutes)
+
+// Potentiometer Setup
+const int potPin = A0;              // Potentiometer pin
+
+// SD Card configuration
+File dataFile;
+
+// button and state configuration
 const int switchPin = 7;                      // switch monitors pin 2
 int buttonState;                              // remember the state of the button
-int displayState = 0;                           // turns the led on and off during blinking
-                                                  // 0 = off
+int displayState = 0;                         //lcd monitor display state
+                                                  // 0 = state0
                                                   // 1 = state1
                                                   // 2 = state2
 
@@ -12,8 +40,27 @@ unsigned long buttonDiff = 0; // [ms]         // store the difference in time be
 
 void setup() {
   pinMode(switchPin, INPUT);                  // set the switch pin as the input 
+  pinMode(valvePin, OUTPUT);                  // set the valve pin as the output 
+  pinMode(potPin, INPUT);                     // set the potentiometer as the input
+
+  SD.begin(10);
   Serial.begin(9600);                         // set up the serial communication
   while(!Serial){}
+
+  lcd.begin(16, 2);
+  lcd.print("Initializing...");
+  delay(2000);
+  lcd.clear();
+  lcd.print("Ready");
+  delay(2000);
+  dht.begin();
+
+  while (analogRead(potPin)!=0){
+    Serial.print("Set Potentiometer to Zero | ");
+    Serial.println(analogRead(potPin));
+    delay(1000);
+  }
+
   buttonState = digitalRead(switchPin);       // read the initial button state
   Serial.println();
   Serial.println("System start up, State 0, Display Valve Settings");
@@ -42,11 +89,16 @@ void loop() {
     }
   }
   buttonState = val;                          // update the button state
+
+  //////////////////////////// READ SENSORS             /////////////////////////
+  float humidity = dht.readHumidity();
+  float temperature = dht.readTemperature(true);
+
   //////////////////////////// EXECUTE STATE FUNCTIONS  /////////////////////////
  if (displayState == 0){
   display0();
  }else if(displayState == 1){
-  display1();
+  display1(temperature, humidity);
  }else{
   display2();
  }
@@ -54,10 +106,59 @@ void loop() {
 
 void display0(){ // valve settings
   //Serial.println("State 0");
+  Serial.print("Valve Open: ");
+  Serial.print(valveOpenDuration/60000);
+  Serial.print(" min | ");
+  Serial.print("Valve Close: ");
+  
+  if (analogRead(potPin)>20 && analogRead(potPin)<100){
+    valveCloseDuration = 60000*2;
+    Serial.print("2 min");
+  }else if (analogRead(potPin)>100 && analogRead(potPin)<200){
+    valveCloseDuration = 60000*3;
+    Serial.print("3 min");
+  }else if (analogRead(potPin)>200 && analogRead(potPin)<300){
+    valveCloseDuration = 60000*5;
+    Serial.print("5 min");
+  }else if (analogRead(potPin)>300 && analogRead(potPin)<400){
+    valveCloseDuration = 60000*10;
+    Serial.print("10 min");
+  }else if (analogRead(potPin)>400 && analogRead(potPin)<500){
+    valveCloseDuration = 60000*20;
+    Serial.print("20 min");
+  }else if (analogRead(potPin)>500 && analogRead(potPin)<600){
+    valveCloseDuration = 60000*30;
+    Serial.print("30 min");
+  }else if (analogRead(potPin)>600 && analogRead(potPin)<700){
+    valveCloseDuration = 60000*60*1;
+    Serial.print("1 hr");
+  }else if (analogRead(potPin)>700 && analogRead(potPin)<800){
+    valveCloseDuration = 60000*60*3;
+    Serial.print("3 hr");
+  }else if (analogRead(potPin)>800 && analogRead(potPin)<900){
+    valveCloseDuration = 60000*60*6;
+    Serial.print("6 hr");
+  }else if (analogRead(potPin)>900 && analogRead(potPin)<1000){
+    valveCloseDuration = 60000*60*12;
+    Serial.print("12 hr");
+  }else if (analogRead(potPin)>1000){
+    valveCloseDuration = 60000*60*24;
+    Serial.print("24 hr");
+  }else{
+    valveCloseDuration = 60000*1;
+    Serial.print("1 min");
+  }
+  Serial.println("");
 }
 
-void display1(){ // environmental conditions
+void display1(float data1, float data2){ // environmental conditions
   //Serial.println("State 1");
+  Serial.print("Temperature: ");
+  Serial.print(data1);
+  Serial.print(" | ");
+  Serial.print("Humidity: ");
+  Serial.print(data2);
+  Serial.println("");
 }
 
 void display2(){ // valve timer
@@ -71,3 +172,4 @@ long buttonDuration(int val){                 // checking button press duration
     buttonDiff = millis() - buttonPrevious;   // if the button HAS been pressed log the duration of the press
   }
 }
+
