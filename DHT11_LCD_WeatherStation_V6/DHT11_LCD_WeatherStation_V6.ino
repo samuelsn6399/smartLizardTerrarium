@@ -49,6 +49,8 @@ void setup() {
   pinMode(valvePin, OUTPUT);                  // set the valve pin as the output 
   pinMode(potPin, INPUT);                     // set the potentiometer as the input
 
+  digitalWrite(valvePin, valveOpen);          // ensure valve is set to the initial condition (closed on start)
+
   SD.begin(10);
   Serial.begin(9600);                         // set up the serial communication
   while(!Serial){}
@@ -123,6 +125,7 @@ void loop() {
       valveOpen = 1;
       valveCloseTime = 0;
       valveOpenStart = millis();
+      digitalWrite(valvePin, valveOpen); // open valve
     }else{
       valveOpenTime = millis() - valveOpenStart;
     }
@@ -134,6 +137,7 @@ void loop() {
       valveOpen = 0;
       valveOpenTime = 0;
       valveCloseStart = millis();
+      digitalWrite(valvePin, valveOpen); // close valve
     }else{
       valveCloseTime = millis() - valveCloseStart;
     }
