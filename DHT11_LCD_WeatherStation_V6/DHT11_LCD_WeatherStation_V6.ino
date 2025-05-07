@@ -16,7 +16,6 @@ DHT dht(DHTPIN, DHTTYPE);
 
 // Valve configuration
 const int valvePin = A1;            // Valve pin
-unsigned long valveCycleStartTime = 0; // Valve cycle start time
 const unsigned long valveOpenDuration = 60000; // Valve open duration (1 minutes)
 unsigned long valveCloseDuration = 60000; // Initial Valve close duration (1 minutes)
 int valveState = 1; // initilize valve state, start with valve on
@@ -41,7 +40,7 @@ int displayState = 0;                         //lcd monitor display state
                                                   // 2 = state2
 
 unsigned long buttonPrevious = 0; // [ms]     // store the time when the button was initially pressed
-const int buttonInterval = 1000; // [ms]      // interval for button being pressed to 'cancel' the change in state
+const int buttonInterval = 5000; // [ms]      // interval for button being pressed to 'reset' the valve timer to trigger an immediate open
 unsigned long buttonDiff = 0; // [ms]         // store the difference in time between button press and release
 
 void setup() {
@@ -91,26 +90,30 @@ void loop() {
     buttonDuration(val);                      // check the button press duration
     if (val != buttonState && buttonDiff < buttonInterval) { // check if the state has changed AND if the button has been pressed longer than the interval value
       if (val == LOW) {                       // check if the button is being pressed
-        if (displayState == 0) {                // check if the light was previously in state 0
-          displayState = 1;                     // change the light state to 1
+        if (displayState == 0) {                // check if the display was previously in state 0
+          displayState = 1;                     // change the display state to 1
           Serial.println("Button just pressed, Display Environment Data");
           lcd.clear();
-          lcd.setCursor(0, 0);
-          lcd.print("Enviro Date:");
-        }else if (displayState == 1){           // check if the light was previously in state 1 
-          displayState = 2;                     // change the light state to 2
+        }else if (displayState == 1){           // check if the display was previously in state 1 
+          displayState = 2;                     // change the display state to 2
           Serial.println("Button just pressed, Display Valve Timer");
           lcd.clear();
-          lcd.setCursor(0, 0);
-          lcd.print("Valve Timer:");
-        }else{                                // check if the light was previously in state 2 
-          displayState = 0;                     // change the light state to 0
+        }else{                                // check if the display was previously in state 2 
+          displayState = 0;                     // change the display state to 0
           Serial.println("Button just pressed, Display Valve Settings");
           lcd.clear();
-          lcd.setCursor(0, 0);
-          lcd.print("Valve Settings:");
         }
       }
+    }else if (val != buttonState && buttonDiff > buttonInterval && displayState == 2) {/* check if the user wants to reset the timer and trigger the valve to open immediately
+                                                                                        by pressing button for 5 seconds. user must be on the "valve status" display.
+                                                                                        displayState = 2*/
+      valveOpen = 0;
+      valveState = 1;
+
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Valve Reset");
+      delay(1000);
     }
   }
   buttonState = val;                          // update the button state
@@ -149,14 +152,20 @@ void loop() {
   //////////////////////////// EXECUTE STATE FUNCTIONS  /////////////////////////
  if (displayState == 0){
   display0();
+  lcd.setCursor(0, 0);
+  lcd.print("Valve Settings:");
  }else if(displayState == 1){
   display1(temperature, humidity);
+  lcd.setCursor(0, 0);
+  lcd.print("Enviro Data:");
  }else{
   display2(valveOpenTime, valveCloseTime, valveOpenDuration, valveCloseDuration);
+  lcd.setCursor(0, 0);
+  lcd.print("Valve Status:");
  }
 }
 
-int display0(){ // valve settings
+int display0(){                               // valve settings
   //Serial.println("State 0");
   Serial.print("Valve Open: ");
   Serial.print(valveOpenDuration/60000);
@@ -216,7 +225,7 @@ int display0(){ // valve settings
   return(valveCloseDuration);
 }
 
-void display1(float data1, float data2){ // environmental conditions
+void display1(float data1, float data2){      // environmental conditions
   //Serial.println("State 1");
   Serial.print("Temperature: ");
   Serial.print(data1);
@@ -258,7 +267,7 @@ void display2(double openTime, double closeTime, double openDuration, double clo
     lcd.setCursor(0, 1);
     lcd.print("Close: ");
     lcd.print(closeTime/60000);
-    lcd.print("min");  
+    lcd.print("min");
   }
 }
 
@@ -269,4 +278,3 @@ long buttonDuration(int val){                 // checking button press duration
     buttonDiff = millis() - buttonPrevious;   // if the button HAS been pressed log the duration of the press
   }
 }
-
