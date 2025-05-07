@@ -18,7 +18,13 @@ DHT dht(DHTPIN, DHTTYPE);
 const int valvePin = A1;            // Valve pin
 unsigned long valveCycleStartTime = 0; // Valve cycle start time
 const unsigned long valveOpenDuration = 60000; // Valve open duration (1 minutes)
-unsigned long valveCloseDuration = 60000; // Valve close duration (1 minutes)
+unsigned long valveCloseDuration = 60000; // Initial Valve close duration (1 minutes)
+int valveState = 1; // initilize valve state, start with valve on
+int valveOpen = 0; // valve is initially closed
+unsigned int valveOpenStart = 0; // initial open time stamp
+unsigned int valveCloseStart = 0; // initial close time stamp
+unsigned int valveOpenTime = 0; // initial open time span
+unsigned int valveCloseTime = 0; // initial close time span
 
 // Potentiometer Setup
 const int potPin = A0;              // Potentiometer pin
@@ -94,17 +100,42 @@ void loop() {
   float humidity = dht.readHumidity();
   float temperature = dht.readTemperature(true);
 
+  //////////////////////////// CONTROL VALVE             /////////////////////////
+  if (valveState==1){
+    if (valveOpen==0){
+      valveOpen = 1;
+      valveCloseTime = 0;
+      valveOpenStart = millis();
+    }else{
+      valveOpenTime = millis() - valveOpenStart;
+    }
+    if (valveOpenTime > valveOpenDuration){
+      valveState = 0;
+    }
+  }else{
+    if (valveOpen==1){
+      valveOpen = 0;
+      valveOpenTime = 0;
+      valveCloseStart = millis();
+    }else{
+      valveCloseTime = millis() - valveCloseStart;
+    }
+    if (valveCloseTime > valveCloseDuration){
+      valveState = 1;
+    }
+  }
+
   //////////////////////////// EXECUTE STATE FUNCTIONS  /////////////////////////
  if (displayState == 0){
   display0();
  }else if(displayState == 1){
   display1(temperature, humidity);
  }else{
-  display2();
+  display2(valveOpenTime, valveCloseTime, valveOpenDuration, valveCloseDuration);
  }
 }
 
-void display0(){ // valve settings
+int display0(){ // valve settings
   //Serial.println("State 0");
   Serial.print("Valve Open: ");
   Serial.print(valveOpenDuration/60000);
@@ -149,6 +180,7 @@ void display0(){ // valve settings
     Serial.print("1 min");
   }
   Serial.println("");
+  return(valveCloseDuration);
 }
 
 void display1(float data1, float data2){ // environmental conditions
@@ -161,8 +193,21 @@ void display1(float data1, float data2){ // environmental conditions
   Serial.println("");
 }
 
-void display2(){ // valve timer
+void display2(double openTime, double closeTime, double openDuration, double closeDuration){ // valve timer
   //Serial.println("State 2");
+  if (valveOpen == 1){
+    Serial.print("Valve Open: ");
+    Serial.print(openTime/60000);
+    Serial.print("/");
+    Serial.print(openDuration/60000);
+    Serial.println(" min");
+  }else{
+    Serial.print("Valve Closed: ");
+    Serial.print(closeTime/60000);
+    Serial.print("/");
+    Serial.print(closeDuration/60000);
+    Serial.println(" min");    
+  }
 }
 
 long buttonDuration(int val){                 // checking button press duration
