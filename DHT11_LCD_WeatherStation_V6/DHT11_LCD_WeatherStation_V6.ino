@@ -32,6 +32,11 @@ const int potPin = A0;              // Potentiometer pin
 File dataFile;
 unsigned long lastLogTime = 0;
 const unsigned long logInterval = 5000; // log every 5 seconds
+int dataOn = 0; // initial data log off
+unsigned int logNum = 0; // initial log number 0
+String fileName = "Data";
+String fileType = ".txt";
+String file = fileName+String(logNum)+fileType;
 
 // button and state configuration
 const int switchPin = 7;                      // switch monitors pin 2
@@ -42,7 +47,7 @@ int displayState = 0;                         //lcd monitor display state
                                                   // 2 = state2
 
 unsigned long buttonPrevious = 0; // [ms]     // store the time when the button was initially pressed
-const int buttonInterval = 5000; // [ms]      // interval for button being pressed to 'reset' the valve timer to trigger an immediate open
+const int buttonInterval = 3000; // [ms]      // interval for button being pressed to 'reset' the valve timer to trigger an immediate open
 unsigned long buttonDiff = 0; // [ms]         // store the difference in time between button press and release
 
 void setup() {
@@ -117,18 +122,39 @@ void loop() {
           lcd.clear();
         }
       }
-    }else if (val != buttonState && buttonDiff > buttonInterval && displayState == 2) {/* check if the user wants to reset the timer and trigger the valve to open immediately
-                                                                                        by pressing button for 5 seconds. user must be on the "valve status" display.
-                                                                                        displayState = 2*/
-      valveOpen = 0;
-      valveState = 1;
+    }else if (val != buttonState && buttonDiff > buttonInterval) {/* check if the user wants to reset the timer and trigger the valve to open immediately
+                                                                                        by pressing button for 5 seconds.*/
+      if (displayState == 2) {                   //  user must be on the "valve status" display.
+        valveOpen = 0;
+        valveState = 1;
 
-      lcd.clear();
-      lcd.setCursor(0, 0);
-      lcd.print("Valve Reset");
-      delay(1000);
+        lcd.clear();
+        lcd.setCursor(0, 0);
+        lcd.print("Valve Reset");
+        delay(1000);
+
+      }else if (displayState == 1) {                    //  user must be on the "Eviro Data" display.
+        if (dataOn == 0){
+          dataOn = 1;
+          file = fileName+String(logNum)+fileType;
+          lcd.clear();
+          lcd.setCursor(0, 0);
+          lcd.print("Data Log On");
+          Serial.println(file);
+          delay(1000);
+        }else{
+          dataOn = 0;
+          logNum = logNum+1;
+          Serial.println(logNum);
+          lcd.clear();
+          lcd.setCursor(0, 0);
+          lcd.print("Data Log Off");
+          delay(1000);
+        }
+      }
     }
   }
+  
   buttonState = val;                          // update the button state
 
   //////////////////////////// READ SENSORS             /////////////////////////
@@ -163,11 +189,11 @@ void loop() {
   }
 
   //////////////////////////// LOG DATA                 /////////////////////////
-  if (millis() - lastLogTime >= logInterval) {
+  if (millis() - lastLogTime >= logInterval && dataOn) {
     if (!isnan(temperature) && !isnan(humidity)) {
-      logDataToSD(temperature, humidity, valveOpen);
+      logDataToSD(temperature, humidity, valveOpen, file);
     }else{
-      logDataToSD(0, 0, valveOpen);
+      logDataToSD(0, 0, valveOpen, file);
     }
     lastLogTime = millis();
   }
@@ -190,73 +216,74 @@ void loop() {
 
 int display0(){                               // valve settings
   //Serial.println("State 0");
-  Serial.print("Valve Open: ");
-  Serial.print(valveOpenDuration/60000);
-  Serial.print(" min | ");
-  Serial.print("Valve Close: ");
+  //Serial.print("Valve Open: ");
+  //Serial.print(valveOpenDuration/60000);
+  //Serial.print(" min | ");
+  //Serial.print("Valve Close: ");
   lcd.setCursor(0, 1);
   if (analogRead(potPin)>20 && analogRead(potPin)<100){
     valveCloseDuration = 60000*2;
-    Serial.print("2 min");
+    //Serial.print("2 min");
     lcd.print("2 min ");
   }else if (analogRead(potPin)>100 && analogRead(potPin)<200){
     valveCloseDuration = 60000*3;
-    Serial.print("3 min");
+    //Serial.print("3 min");
     lcd.print("3 min ");
   }else if (analogRead(potPin)>200 && analogRead(potPin)<300){
     valveCloseDuration = 60000*5;
-    Serial.print("5 min");
+    //Serial.print("5 min");
     lcd.print("5 min ");
   }else if (analogRead(potPin)>300 && analogRead(potPin)<400){
     valveCloseDuration = 60000*10;
-    Serial.print("10 min");
+    //Serial.print("10 min");
     lcd.print("10 min");
   }else if (analogRead(potPin)>400 && analogRead(potPin)<500){
     valveCloseDuration = 60000*20;
-    Serial.print("20 min");
+    //Serial.print("20 min");
     lcd.print("20 min");
   }else if (analogRead(potPin)>500 && analogRead(potPin)<600){
     valveCloseDuration = 60000*30;
-    Serial.print("30 min");
+    //Serial.print("30 min");
     lcd.print("30 min");
   }else if (analogRead(potPin)>600 && analogRead(potPin)<700){
     valveCloseDuration = 60000*60*1;
-    Serial.print("1 hr");
+    //Serial.print("1 hr");
     lcd.print("1 hr  ");
   }else if (analogRead(potPin)>700 && analogRead(potPin)<800){
     valveCloseDuration = 60000*60*3;
-    Serial.print("3 hr");
+    //Serial.print("3 hr");
     lcd.print("3 hr  ");
   }else if (analogRead(potPin)>800 && analogRead(potPin)<900){
     valveCloseDuration = 60000*60*6;
-    Serial.print("6 hr");
+    //Serial.print("6 hr");
     lcd.print("6 hr  ");
   }else if (analogRead(potPin)>900 && analogRead(potPin)<1000){
     valveCloseDuration = 60000*60*12;
-    Serial.print("12 hr");
+    //Serial.print("12 hr");
     lcd.print("12 hr ");
   }else if (analogRead(potPin)>1000){
     valveCloseDuration = 60000*60*24;
-    Serial.print("24 hr");
+    //Serial.print("24 hr");
     lcd.print("24 hr ");
   }else{
     valveCloseDuration = 60000*1;
-    Serial.print("1 min");
+    //Serial.print("1 min");
     lcd.print("1 min ");
   }
-  Serial.println("");
+  //Serial.println("");
   return(valveCloseDuration);
 }
 
 void display1(float data1, float data2){      // environmental conditions
-  //Serial.println("State 1");
+  /*
+  Serial.println("State 1");
   Serial.print("Temperature: ");
   Serial.print(data1);
   Serial.print(" | ");
   Serial.print("Humidity: ");
   Serial.print(data2);
   Serial.println("");
-  
+  */
   lcd.setCursor(0, 1);
   lcd.print("T: ");
   lcd.print(data1);
@@ -270,23 +297,25 @@ void display1(float data1, float data2){      // environmental conditions
 void display2(double openTime, double closeTime, double openDuration, double closeDuration){ // valve timer
   //Serial.println("State 2");
   if (valveOpen == 1){
+    /*
     Serial.print("Valve Open: ");
     Serial.print(openTime/60000);
     Serial.print("/");
     Serial.print(openDuration/60000);
     Serial.println(" min");
-    
+    */
     lcd.setCursor(0, 1);
     lcd.print("Open: ");
     lcd.print(openTime/60000);
     lcd.print("min");
   }else{
+    /*
     Serial.print("Valve Closed: ");
     Serial.print(closeTime/60000);
     Serial.print("/");
     Serial.print(closeDuration/60000);
     Serial.println(" min");  
-
+    */
     lcd.setCursor(0, 1);
     lcd.print("Close: ");
     lcd.print(closeTime/60000);
@@ -302,10 +331,9 @@ long buttonDuration(int val){                 // checking button press duration
   }
 }
 
-void logDataToSD(float temperature, float humidity, bool valveOpen) {
+void logDataToSD(float temperature, float humidity, bool valveOpen, String name) {
   String timestamp = formatTime(millis());
-
-  dataFile = SD.open("data.txt", FILE_WRITE);
+  dataFile = SD.open(name, FILE_WRITE);
   if (dataFile) {
     dataFile.print(timestamp);
     dataFile.print(", ");
