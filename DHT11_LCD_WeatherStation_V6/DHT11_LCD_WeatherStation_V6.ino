@@ -57,7 +57,7 @@ void setup() {
 
   digitalWrite(valvePin, valveOpen);          // ensure valve is set to the initial condition (closed on start)
   
-  Serial.begin(9600);                         // set up the serial communication
+  // Serial.begin(9600);                         // set up the serial communication
 
   lcd.begin(16, 2);
   lcd.print("Initializing LCD");
@@ -81,8 +81,10 @@ void setup() {
   delay(2000);
 
   while (analogRead(potPin)!=0){
+    /*
     Serial.print("Set Potentiometer to Zero | ");
     Serial.println(analogRead(potPin));
+    */
     lcd.clear();
     lcd.setCursor(0, 0);
     lcd.print("Set Pot to Zero");
@@ -92,8 +94,10 @@ void setup() {
   }
 
   buttonState = digitalRead(switchPin);       // read the initial button state
+  /*
   Serial.println();
   Serial.println("System start up, State 0, Display Valve Settings");
+  */
   lcd.clear();
   lcd.setCursor(0, 0);
   lcd.print("Valve Settings:");
@@ -110,15 +114,15 @@ void loop() {
       if (val == LOW) {                       // check if the button is being pressed
         if (displayState == 0) {                // check if the display was previously in state 0
           displayState = 1;                     // change the display state to 1
-          Serial.println("Button just pressed, Display Environment Data");
+          // Serial.println("Button just pressed, Display Environment Data");
           lcd.clear();
         }else if (displayState == 1){           // check if the display was previously in state 1 
           displayState = 2;                     // change the display state to 2
-          Serial.println("Button just pressed, Display Valve Timer");
+          // Serial.println("Button just pressed, Display Valve Timer");
           lcd.clear();
         }else{                                // check if the display was previously in state 2 
           displayState = 0;                     // change the display state to 0
-          Serial.println("Button just pressed, Display Valve Settings");
+          // Serial.println("Button just pressed, Display Valve Settings");
           lcd.clear();
         }
       }
@@ -140,12 +144,12 @@ void loop() {
           lcd.clear();
           lcd.setCursor(0, 0);
           lcd.print("Data Log On");
-          Serial.println(file);
+          // Serial.println(file);
           delay(1000);
         }else{
           dataOn = 0;
           logNum = logNum+1;
-          Serial.println(logNum);
+          // Serial.println(logNum);
           lcd.clear();
           lcd.setCursor(0, 0);
           lcd.print("Data Log Off");
