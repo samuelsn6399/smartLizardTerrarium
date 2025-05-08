@@ -13,18 +13,24 @@ An Arduino-based environmental monitoring system with integrated valve control. 
 
 - 💧 **Valve Control Automation**
   - Opens valve for a set duration (default: 1 min)
-  - Closes valve for a user-defined duration (default: 1 min)
+  - Closes valve for a user-defined duration (1 min - 24 hour)
   - Fully cycle-controlled via timers
 
 - 💾 **SD Card Data Logging**
-  - Logs humidity, temperature, and timestamps to `data.txt`
+  - Logs timestamps, humidity, temperature, and valve status to `data(I).txt`
+    - '(I)' denotes the variable data file name starting at 0 and incrementing by +1
 
 - 🖲️ **Button Controls**
-  - **Short press (0.5s)**: toggles LCD display between environment and valve info
-  - **Long press (5s)**: resets valve timer (forces valve open + resets cycle)
+  - **Short press ()**: 
+    - tToggles LCD display between environment and valve info
+  - **Long press (3s)**: 
+    - Resets valve timer when viewing the valve timer display(forces valve open + resets cycle)
+    - Start/stop data logging when viewing the enviro data display(start logging data + create new file to store data on SD card)
 
 - 🔘 **Potentiometer Interface**
-  - Can be used for future expansion (currently not active in logic)
+  - Sets the spray interval:
+    - 1 min, 2 min, 3 min, 5 min, 10 min, 20 min, 30 min
+    - 1 hr, 3 hr, 6 hr, 12 hr, 24 hr
 
 ---
 
@@ -34,20 +40,24 @@ An Arduino-based environmental monitoring system with integrated valve control. 
 - DHT11 sensor
 - 16x2 LCD (parallel interface)
 - SD card module
-- Valve (controlled via digital pin A1)
+- Solenoid Valve 12V (controlled via digital pin A1)
 - Push button (on pin 7)
 - Potentiometer (on pin A0)
 - 10kΩ resistor (for button pull-up, if not using `INPUT_PULLUP`)
+- TIP102 transister (to control 12 V solenoid with 5 V Arduino logic)
+- 1kΩ resistor (for Arduino pin to transister)
+- IN40001 diode (prevent back emf into Arduino when switching solenoid on/off)
+- 12 V DC power supply
 
 ---
 
 ## 🛠 Configuration
 
 You can change key timings directly in the `.ino` file:
-
 ```cpp
-const unsigned long valveOpenDuration = 60000;     // 1 minute
-unsigned long valveCloseDuration = 600000;         // e.g., 10 minutes
+const unsigned long valveOpenDuration = 60000; // [ms]    // open valve for 1 minute
+const unsigned long logInterval = 5000; // [ms]           // log data every 5 seconds
+const int buttonInterval = 3000; // [ms]                  // define a long button press
 ```
 
 ---
@@ -59,23 +69,22 @@ unsigned long valveCloseDuration = 600000;         // e.g., 10 minutes
 3. Watch live readings on the LCD.
 4. Use the button:
    - Short press to toggle display.
-   - Long press to reset the valve timer.
-
+   - Long press (greater than 3 seconds) to reset the valve timer and start/stop data logging.
+5. Use potentiometer:
+   - Set the spray interval.
 ---
 
 ## 📁 Output Example
 
 LCD Display:
 ```
-Temp: 24°CF
-Hum: 45%
+T: 24°F H: 45
 ```
-
 Valve Display:
 ```
-Valve ON 12s
+Valve ON: 0.75 min
 ```
 or
 ```
-Next ON: 522s
+Valve OFF: 1.96 min
 ```
