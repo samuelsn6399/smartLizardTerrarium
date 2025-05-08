@@ -30,6 +30,8 @@ const int potPin = A0;              // Potentiometer pin
 
 // SD Card configuration
 File dataFile;
+unsigned long lastLogTime = 0;
+const unsigned long logInterval = 5000; // log every 5 seconds
 
 // button and state configuration
 const int switchPin = 7;                      // switch monitors pin 2
@@ -49,18 +51,29 @@ void setup() {
   pinMode(potPin, INPUT);                     // set the potentiometer as the input
 
   digitalWrite(valvePin, valveOpen);          // ensure valve is set to the initial condition (closed on start)
-
-  SD.begin(10);
+  
   Serial.begin(9600);                         // set up the serial communication
-  while(!Serial){}
 
   lcd.begin(16, 2);
-  lcd.print("Initializing...");
+  lcd.print("Initializing LCD");
   delay(2000);
+  while(!SD.begin(10)){
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Initializing SD");
+    delay(2000);
+  }
+  
+  dht.begin();
   lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Initializing DHT");
+  delay(2000);
+  
+  lcd.clear();
+  lcd.setCursor(0, 0);
   lcd.print("Ready");
   delay(2000);
-  dht.begin();
 
   while (analogRead(potPin)!=0){
     Serial.print("Set Potentiometer to Zero | ");
@@ -147,6 +160,16 @@ void loop() {
     if (valveCloseTime > valveCloseDuration){
       valveState = 1;
     }
+  }
+
+  //////////////////////////// LOG DATA                 /////////////////////////
+  if (millis() - lastLogTime >= logInterval) {
+    if (!isnan(temperature) && !isnan(humidity)) {
+      logDataToSD(temperature, humidity, valveOpen);
+    }else{
+      logDataToSD(0, 0, valveOpen);
+    }
+    lastLogTime = millis();
   }
 
   //////////////////////////// EXECUTE STATE FUNCTIONS  /////////////////////////
@@ -278,3 +301,36 @@ long buttonDuration(int val){                 // checking button press duration
     buttonDiff = millis() - buttonPrevious;   // if the button HAS been pressed log the duration of the press
   }
 }
+
+void logDataToSD(float temperature, float humidity, bool valveOpen) {
+  String timestamp = formatTime(millis());
+
+  dataFile = SD.open("data.txt", FILE_WRITE);
+  if (dataFile) {
+    dataFile.print(timestamp);
+    dataFile.print(", ");
+    dataFile.print(temperature, 2);
+    dataFile.print(", ");
+    dataFile.print(humidity, 2);
+    dataFile.print(", ");
+    dataFile.println(valveOpen ? "OPEN" : "CLOSED");
+    dataFile.close();
+  } else {
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("SD Write Error");
+    delay(2000); // brief user warning
+  }
+}
+
+String formatTime(unsigned long ms) {
+  unsigned long seconds = ms / 1000;
+  unsigned int hours = seconds / 3600;
+  unsigned int minutes = (seconds % 3600) / 60;
+  unsigned int secs = seconds % 60;
+
+  char buffer[9];
+  sprintf(buffer, "%02u:%02u:%02u", hours, minutes, secs);
+  return String(buffer);
+}
+
